@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Songs - MusicApp</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="upload.css">
+  <link rel="stylesheet" href="mysongs.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <a class="back" href="index.html">&#8592; Home</a>
+    <div class="logo">Music<span>App</span></div>
+  </header>
+
+  <main class="my-wrap">
+    <h1>My <span>Songs</span></h1>
+    <p class="sub" id="who">Your uploads and how they are performing.</p>
+
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat"><b id="statSongs">0</b><span>Songs</span></div>
+      <div class="stat"><b id="statPlays">0</b><span>Total plays</span></div>
+      <div class="stat"><b id="statTop">-</b><span>Top song</span></div>
+    </div>
+
+    <!-- AD SLOT: paste your Adsterra or Monetag banner code inside, replace the ad-label line -->
+    <div class="ad-slot">
+      <span class="ad-label">Ad space</span>
+    </div>
+
+    <p class="msg" id="msg"></p>
+    <div class="my-list" id="myList"></div>
+
+    <a class="btn btn-green btn-big full add-btn" href="upload.html">+ Upload new song</a>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="mysongs.js"></script>
+</body>
+</html>

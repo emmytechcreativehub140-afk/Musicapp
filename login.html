@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - MusicApp</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="upload.css">
+  <link rel="stylesheet" href="login.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <a class="back" href="index.html">&#8592; Back</a>
+    <div class="logo">Music<span>App</span></div>
+  </header>
+
+  <main class="upload-wrap">
+    <section class="upload-card">
+      <h1 id="heading">Welcome <span>back</span></h1>
+      <p class="sub" id="subText">Log in to upload and promote your music.</p>
+
+      <div class="tabs">
+        <button class="tab active" id="tabLogin">Login</button>
+        <button class="tab" id="tabSignup">Sign up</button>
+      </div>
+
+      <label class="field">Email
+        <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
+      </label>
+
+      <label class="field">Password
+        <input type="password" id="password" placeholder="At least 6 characters" autocomplete="current-password">
+      </label>
+
+      <p class="msg" id="msg"></p>
+
+      <button class="btn btn-green btn-big full" id="authBtn">Login</button>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="login.js"></script>
+</body>
+</html>

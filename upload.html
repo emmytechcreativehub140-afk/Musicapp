@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload Music - MusicApp</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="upload.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <a class="back" href="index.html">&#8592; Back</a>
+    <div class="logo">Music<span>App</span></div>
+  </header>
+
+  <main class="upload-wrap">
+    <section class="upload-card">
+      <h1>Upload your <span>music</span></h1>
+      <p class="sub">Share your song and let people stream it.</p>
+
+      <label class="field">Song title
+        <input type="text" id="title" placeholder="e.g. Midnight Vibes">
+      </label>
+
+      <label class="field">Artist name
+        <input type="text" id="artist" placeholder="Your stage name">
+      </label>
+
+      <label class="field">Genre
+        <select id="genre">
+          <option>Afrobeats</option>
+          <option>Hip-Hop</option>
+          <option>Gospel</option>
+          <option>R&amp;B</option>
+          <option>Highlife</option>
+          <option>Amapiano</option>
+          <option>Other</option>
+        </select>
+      </label>
+
+      <!-- Cover image picker -->
+      <div class="drop" id="coverDrop">
+        <input type="file" id="coverInput" accept="image/*" hidden>
+        <img id="coverPreview" alt="Cover preview">
+        <div class="drop-text" id="coverText">
+          <span class="drop-icon">&#128444;</span>
+          <strong>Add cover art</strong>
+          <small>Tap to choose an image</small>
+        </div>
+      </div>
+
+      <!-- Audio picker -->
+      <div class="drop" id="audioDrop">
+        <input type="file" id="audioInput" accept="audio/*" hidden>
+        <div class="drop-text" id="audioText">
+          <span class="drop-icon">&#127925;</span>
+          <strong>Choose your song</strong>
+          <small>MP3, WAV or M4A</small>
+        </div>
+      </div>
+      <audio id="audioPreview" controls hidden></audio>
+
+      <p class="error" id="error"></p>
+
+      <button class="btn btn-green btn-big full" id="submitBtn">Upload Song</button>
+
+      <div class="upload-progress" id="uploadProgress">
+        <div class="upload-fill" id="uploadFill"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Success screen -->
+  <div class="success" id="success">
+    <div class="success-box">
+      <div class="check">&#10003;</div>
+      <h2>Song uploaded!</h2>
+      <p id="successText">Your song is live.</p>
+      <a class="btn btn-green" href="index.html">Go to Home</a>
+      <button class="btn btn-ghost" id="againBtn">Upload another</button>
+    </div>
+  </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="upload.js"></script>
+</body>
+</html>

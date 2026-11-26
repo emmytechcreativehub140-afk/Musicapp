@@ -1,0 +1,63 @@
+.my-wrap { max-width: 520px; margin: 0 auto; padding: 22px 14px 60px; }
+.my-wrap h1 { font-size: 1.7rem; margin-bottom: 4px; }
+.my-wrap h1 span { color: var(--green); }
+.my-wrap .sub { color: var(--muted); margin-bottom: 20px; }
+
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 6px; }
+.stat {
+  background: var(--card); border-radius: 14px; padding: 16px 8px; text-align: center;
+  animation: cardUp 0.7s var(--ease) both;
+}
+.stat:nth-child(2) { animation-delay: 0.1s; }
+.stat:nth-child(3) { animation-delay: 0.2s; }
+.stat b { display: block; font-size: 1.3rem; color: var(--green); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat span { font-size: 0.72rem; color: var(--muted); }
+
+.my-list { display: flex; flex-direction: column; gap: 10px; }
+.my-song {
+  display: flex; align-items: center; gap: 12px; background: var(--card);
+  border-radius: 14px; padding: 12px; opacity: 0;
+  animation: slideIn 0.6s var(--ease) forwards;
+  transition: background 0.3s, transform 0.3s var(--ease);
+}
+.my-song:hover { background: var(--card-hover); transform: translateX(4px); }
+.my-song .cover { width: 56px; margin: 0; font-size: 1.3rem; flex-shrink: 0; }
+.my-song .cover::after { display: none; }
+.my-info { flex: 1; min-width: 0; }
+.my-plays { color: var(--green); font-size: 0.8rem; font-weight: 700; margin-top: 3px; }
+.my-actions { display: flex; flex-direction: column; gap: 6px; }
+.mini-btn {
+  border: none; cursor: pointer; font-size: 0.75rem; font-weight: 700;
+  padding: 8px 12px; border-radius: 20px; background: rgba(255, 255, 255, 0.08); color: var(--text);
+  transition: transform 0.25s var(--ease), background 0.3s;
+}
+.mini-btn:active { transform: scale(0.9); }
+.mini-btn.del { color: #ff5a6e; }
+.mini-btn.del:hover { background: rgba(255, 90, 110, 0.15); }
+
+.empty { text-align: center; color: var(--muted); padding: 30px 10px; }
+.add-btn { display: block; text-align: center; text-decoration: none; margin-top: 22px; }
+.msg { min-height: 20px; color: #ff5a6e; font-size: 0.85rem; margin: 8px 0; }
+/* ===== Stage 6: artist page and earnings ===== */
+.artist-head { text-align: center; margin-bottom: 20px; }
+.avatar {
+  width: 96px; height: 96px; border-radius: 50%; margin: 0 auto 14px;
+  background: var(--green); color: #000; font-size: 2.6rem; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  animation: checkPop 0.7s var(--ease) both;
+}
+.artist-head .btn { margin-top: 6px; }
+
+#result { margin-top: 22px; }
+.pay-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.pay-summary div { background: #0f0f0f; border-radius: 12px; padding: 14px; text-align: center; }
+.pay-summary span { display: block; color: var(--muted); font-size: 0.75rem; margin-bottom: 4px; }
+.pay-summary b { color: var(--green); font-size: 1.1rem; }
+.pay-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  background: #0f0f0f; border-radius: 12px; padding: 12px 14px; margin-bottom: 8px;
+  animation: slideIn 0.6s var(--ease) both;
+}
+.pay-row small { display: block; color: var(--muted); font-size: 0.75rem; margin-top: 2px; }
+.pay-row b { color: var(--green); white-space: nowrap; }
+.note { color: var(--muted); font-size: 0.75rem; margin-top: 12px; text-align: center; }

@@ -1,0 +1,13 @@
+.tabs {
+  display: flex; background: #0f0f0f; border-radius: 30px;
+  padding: 4px; margin-bottom: 20px;
+}
+.tab {
+  flex: 1; border: none; background: none; color: var(--muted);
+  font-weight: 700; font-size: 0.95rem; padding: 11px; border-radius: 30px; cursor: pointer;
+  transition: background 0.35s var(--ease), color 0.3s, transform 0.25s var(--ease);
+}
+.tab:active { transform: scale(0.95); }
+.tab.active { background: var(--green); color: #000; }
+.msg { min-height: 20px; font-size: 0.85rem; margin-bottom: 8px; color: #ff5a6e; }
+.msg.ok { color: var(--green); }
