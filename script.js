@@ -24,16 +24,17 @@ let currentIndex = -1;
 let isPlaying = false;
 let shuffleOn = false;
 let repeatOn = false;
-let counted = false;        // has this play been counted yet
+let counted = false;
 let loggedIn = false;
 let fakeTimer = null;
 let fakeTime = 0;
-const FAKE_DURATION = 30;   // demo songs (no audio file) last 30 seconds
+const FAKE_DURATION = 30;
 const audio = new Audio();
 let toastTimer = null;
 
 // ===== Helpers =====
 function $(id) { return document.getElementById(id); }
+function on(id, event, fn) { const el = $(id); if (el) el.addEventListener(event, fn); }
 function esc(t) {
   return String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
@@ -49,13 +50,12 @@ function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
 }
-// Cover picture if the song has one, otherwise its color
 function coverBg(s) { return s.cover ? "url('" + s.cover + "') center/cover" : s.color; }
 function coverIcon(s) { return s.cover ? '' : '&#9835;'; }
 
 // ===== Load songs from Supabase =====
 async function loadSongs() {
-  if (db) {
+  if (typeof db !== 'undefined' && db) {
     try {
       const res = await db.from('songs').select('*').order('created_at', { ascending: false });
       if (res.error) throw res.error;
@@ -76,7 +76,7 @@ async function loadSongs() {
 
 // ===== Login state =====
 async function refreshAuth() {
-  if (!db) return;
+  if (typeof db === 'undefined' || !db) return;
   const res = await db.auth.getSession();
   loggedIn = !!res.data.session;
   $('loginBtn').textContent = loggedIn ? 'Logout' : 'Login';
@@ -101,7 +101,7 @@ function renderTrending() {
       e.stopPropagation();
       toggleLike(s.id);
     });
-    row.appendChild(car);
+    row.appendChild(card);
   });
 }
 
@@ -121,6 +121,7 @@ function renderArtists() {
     row.appendChild(el);
   });
 }
+
 function renderReleases() {
   const list = $('releaseList');
   list.innerHTML = '';
@@ -147,16 +148,16 @@ function toggleLike(id) {
 }
 function refreshLikes() {
   document.querySelectorAll('.like-btn').forEach((btn) => {
-    const on = liked.includes(Number(btn.dataset.id));
-    btn.classList.toggle('liked', on);
-    btn.innerHTML = on ? '&#9829;' : '&#9825;';
+    const isOn = liked.includes(Number(btn.dataset.id));
+    btn.classList.toggle('liked', isOn);
+    btn.innerHTML = isOn ? '&#9829;' : '&#9825;';
   });
 }
 
-// ===== Play counts (saved in Supabase for real songs) =====
+// ===== Play counts =====
 function countPlay(s) {
   s.plays += 1;
-  if (db && s.fromDb) {
+  if (typeof db !== 'undefined' && db && s.fromDb) {
     db.rpc('increment_plays', { song_id: s.id }).then(() => {}, () => {});
   }
   refreshPlays();
@@ -250,7 +251,6 @@ function updateProgress(cur, dur) {
   $('fpCur').textContent = formatTime(cur);
   $('fpDur').textContent = formatTime(dur);
 }
-// Demo clock for songs that have no audio file
 function startFake() {
   stopFake();
   fakeTimer = setInterval(() => {
@@ -261,7 +261,6 @@ function startFake() {
 }
 function stopFake() { clearInterval(fakeTimer); }
 
-// Real audio progress
 audio.addEventListener('timeupdate', () => updateProgress(audio.currentTime, audio.duration || 0));
 audio.addEventListener('loadedmetadata', () => updateProgress(0, audio.duration || 0));
 audio.addEventListener('ended', handleEnded);
@@ -278,7 +277,7 @@ function seek(pct) {
   }
 }
 ['progress', 'fpProgress'].forEach((id) => {
-  $(id).addEventListener('click', (e) => {
+  on(id, 'click', (e) => {
     const r = e.currentTarget.getBoundingClientRect();
     seek((e.clientX - r.left) / r.width);
   });
@@ -294,13 +293,12 @@ function closeFull() {
   $('fullPlayer').classList.remove('open');
   document.body.classList.remove('noscroll');
 }
-$('openFull').addEventListener('click', openFull);
-$('fpClose').addEventListener('click', closeFull);
+on('openFull', 'click', openFull);
+on('fpClose', 'click', closeFull);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeFull(); });
 
 // ===== Share =====
 function songLink(s) {
-  // The link opens the home page and loads this song
   return location.href.split('?')[0].split('#')[0] + '?song=' + s.id;
 }
 function shareText(s) { return 'Listen to "' + s.title + '" by ' + s.artist + ' on MusicApp'; }
@@ -326,28 +324,28 @@ function shareWhatsApp() {
 }
 
 // ===== Button wiring =====
-$('playBtn').addEventListener('click', togglePlay);
-$('fpPlay').addEventListener('click', togglePlay);
-$('nextBtn').addEventListener('click', nextSong);
-$('fpNext').addEventListener('click', nextSong);
-$('prevBtn').addEventListener('click', prevSong);
-$('fpPrev').addEventListener('click', prevSong);
-$('fpLike').addEventListener('click', () => { if (currentIndex !== -1) toggleLike(songs[currentIndex].id); });
-$('shareBtn').addEventListener('click', shareSong);
-$('waBtn').addEventListener('click', shareWhatsApp);
-$('shuffleBtn').addEventListener('click', () => {
+on('playBtn', 'click', togglePlay);
+on('fpPlay', 'click', togglePlay);
+on('nextBtn', 'click', nextSong);
+on('fpNext', 'click', nextSong);
+on('prevBtn', 'click', prevSong);
+on('fpPrev', 'click', prevSong);
+on('fpLike', 'click', () => { if (currentIndex !== -1) toggleLike(songs[currentIndex].id); });
+on('shareBtn', 'click', shareSong);
+on('waBtn', 'click', shareWhatsApp);
+on('shuffleBtn', 'click', () => {
   shuffleOn = !shuffleOn;
   $('shuffleBtn').classList.toggle('active', shuffleOn);
   toast(shuffleOn ? 'Shuffle on' : 'Shuffle off');
 });
-$('repeatBtn').addEventListener('click', () => {
+on('repeatBtn', 'click', () => {
   repeatOn = !repeatOn;
   $('repeatBtn').classList.toggle('active', repeatOn);
   toast(repeatOn ? 'Repeat on' : 'Repeat off');
 });
 
 // ===== Search =====
-$('search').addEventListener('input', (e) => {
+on('search', 'input', (e) => {
   const q = e.target.value.toLowerCase();
   document.querySelectorAll('.song-card').forEach((card) => {
     card.style.display = card.textContent.toLowerCase().includes(q) ? '' : 'none';
@@ -355,7 +353,7 @@ $('search').addEventListener('input', (e) => {
 });
 
 // ===== Top buttons =====
-$('loginBtn').addEventListener('click', async () => {
+on('loginBtn', 'click', async () => {
   if (loggedIn) {
     await db.auth.signOut();
     await refreshAuth();
@@ -364,9 +362,9 @@ $('loginBtn').addEventListener('click', async () => {
     window.location.href = 'login.html';
   }
 });
-$('uploadBtn').addEventListener('click', () => { window.location.href = 'upload.html'; });
-$('mySongsBtn').addEventListener('click', () => { window.location.href = 'mysongs.html'; });
-$('startBtn').addEventListener('click', () => playSong(0));
+on('uploadBtn', 'click', () => { window.location.href = 'upload.html'; });
+on('mySongsBtn', 'click', () => { window.location.href = 'mysongs.html'; });
+on('startBtn', 'click', () => playSong(0));
 
 // ===== Top bar shadow on scroll =====
 window.addEventListener('scroll', () => {
@@ -398,7 +396,6 @@ async function init() {
   refreshLikes();
   await refreshAuth();
 
-  // If someone opens a shared link (?song=ID), load that song in the full player
   const sharedId = new URLSearchParams(location.search).get('song');
   if (sharedId) {
     const i = songs.findIndex((s) => String(s.id) === sharedId);
