@@ -53,6 +53,34 @@ function toast(msg) {
 function coverBg(s) { return s.cover ? "url('" + s.cover + "') center/cover" : s.color; }
 function coverIcon(s) { return s.cover ? '' : '&#9835;'; }
 
+// ===== Promoted songs (Audiomack links) =====
+// Turns a saved Audiomack link into the player link
+function embedSrc(s) {
+  const m = (s.source || '').match(/audiomack\.com\/([\w.~%-]+)\/song\/([\w.~%-]+)/);
+  return m ? 'https://audiomack.com/embed/song/' + m[1] + '/' + m[2] : '';
+}
+function isPromo(s) { return !!embedSrc(s); }
+
+// Extra pieces made by code, so index.html does not need changes
+const fpEmbed = document.createElement('div');
+fpEmbed.className = 'fp-embed';
+$('fpCover').parentNode.insertBefore(fpEmbed, $('fpCover'));
+
+const amBtn = document.createElement('a');
+amBtn.className = 'act';
+amBtn.textContent = 'Audiomack';
+amBtn.target = '_blank';
+amBtn.rel = 'noopener';
+amBtn.style.display = 'none';
+amBtn.style.textDecoration = 'none';
+$('shareBtn').parentNode.appendChild(amBtn);
+
+const promoBtn = document.createElement('button');
+promoBtn.className = 'btn btn-ghost';
+promoBtn.id = 'promoteBtn';
+promoBtn.textContent = 'Promote';
+$('uploadBtn').parentNode.insertBefore(promoBtn, $('uploadBtn'));
+
 // ===== Load songs from Supabase =====
 async function loadSongs() {
   if (typeof db !== 'undefined' && db) {
@@ -65,7 +93,8 @@ async function loadSongs() {
         artist: r.artist,
         plays: r.plays || 0,
         color: r.color || '#1ed760',
-        url: r.audio_url,
+        url: r.audio_url || '',
+        source: r.source_url || '',
         cover: r.cover_url || '',
         fromDb: true
       }));
@@ -178,8 +207,20 @@ function selectSong(index) {
   counted = false;
   fakeTime = 0;
   const s = songs[index];
+  const embed = embedSrc(s);
 
   if (s.url) { audio.src = s.url; } else { audio.removeAttribute('src'); audio.load(); }
+
+  // Promoted song: show the Audiomack player. Other songs: remove it.
+  if (embed) {
+    fpEmbed.innerHTML = '<iframe src="' + esc(embed) + '" height="252" scrolling="no" frameborder="0" allow="autoplay"></iframe>';
+    amBtn.href = s.source;
+    amBtn.style.display = '';
+  } else {
+    fpEmbed.innerHTML = '';
+    amBtn.style.display = 'none';
+  }
+  $('fullPlayer').classList.toggle('embed-mode', !!embed);
 
   $('player').classList.add('active');
   $('playerTitle').textContent = s.title;
@@ -211,10 +252,18 @@ function pausePlayback() {
 }
 function playSong(index) {
   selectSong(index);
+  // Promoted songs play inside the Audiomack player, so just open it
+  if (isPromo(songs[index])) {
+    counted = true;
+    countPlay(songs[index]);
+    openFull();
+    return;
+  }
   startPlayback();
 }
 function togglePlay() {
   if (currentIndex === -1) { playSong(0); return; }
+  if (isPromo(songs[currentIndex])) { openFull(); return; }
   if (isPlaying) pausePlayback(); else startPlayback();
 }
 function nextSong() {
@@ -363,6 +412,7 @@ on('loginBtn', 'click', async () => {
   }
 });
 on('uploadBtn', 'click', () => { window.location.href = 'upload.html'; });
+on('promoteBtn', 'click', () => { window.location.href = 'promote.html'; });
 on('mySongsBtn', 'click', () => { window.location.href = 'mysongs.html'; });
 on('startBtn', 'click', () => playSong(0));
 
@@ -396,10 +446,13 @@ async function init() {
   refreshLikes();
   await refreshAuth();
 
+  // Shared link (?song=ID): open that song
   const sharedId = new URLSearchParams(location.search).get('song');
   if (sharedId) {
     const i = songs.findIndex((s) => String(s.id) === sharedId);
-    if (i !== -1) { selectSong(i); openFull(); }
+    if (i !== -1) {
+      if (isPromo(songs[i])) { playSong(i); } else { selectSong(i); openFull(); }
+    }
   }
 }
 init();

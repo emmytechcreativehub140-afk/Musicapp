@@ -4,7 +4,7 @@ let mode = 'login';
 // Where to go after login (upload.html sends people here with ?next=upload.html)
 const params = new URLSearchParams(location.search);
 const wanted = params.get('next');
-const next = ['upload.html', 'mysongs.html'].includes(wanted) ? wanted : 'index.html';
+const next = ['upload.html', 'mysongs.html', 'promote.html'].includes(wanted) ? wanted : 'index.html';
 
 function setMode(m) {
   mode = m;

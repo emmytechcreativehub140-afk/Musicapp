@@ -258,3 +258,13 @@ body.noscroll { overflow: hidden; }
   text-align: center;
 }
 .ad-label { color: #555; font-size: 0.72rem; letter-spacing: 2px; text-transform: uppercase; }
+/* ===== Stage 7: promoted (Audiomack) songs ===== */
+.top-actions { flex-wrap: wrap; justify-content: flex-end; }
+.preview { margin-bottom: 14px; border-radius: 14px; overflow: hidden; }
+.preview iframe { display: block; width: 100%; border: 0; }
+.fp-embed { display: none; width: 100%; max-width: 420px; margin-top: 6px; border-radius: 14px; overflow: hidden; }
+.fp-embed iframe { display: block; width: 100%; border: 0; }
+.full-player.embed-mode .fp-cover { display: none; }
+.full-player.embed-mode .fp-embed { display: block; }
+.full-player.embed-mode .fp-progress-wrap,
+.full-player.embed-mode .fp-controls { display: none; }
