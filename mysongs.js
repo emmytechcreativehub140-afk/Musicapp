@@ -57,12 +57,63 @@ function render(list) {
       '<div class="song-artist">' + esc(s.artist) + (s.genre ? ' - ' + esc(s.genre) : '') + '</div>' +
       '<div class="my-plays">' + (s.plays || 0).toLocaleString() + ' plays</div></div>' +
       '<div class="my-actions"><button class="mini-btn copy">Copy link</button>' +
+      '<button class="mini-btn cov">Change cover</button>' +
       '<button class="mini-btn del">Delete</button></div>';
 
     row.querySelector('.copy').addEventListener('click', () => copyLink(s.id));
+    row.querySelector('.cov').addEventListener('click', () => changeCover(s));
     row.querySelector('.del').addEventListener('click', () => deleteSong(s, row));
     box.appendChild(row);
   });
+}
+
+// ===== Pictures =====
+function resizeImage(file, size) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const side = Math.min(img.width, img.height);
+      const sx = (img.width - side) / 2;
+      const sy = (img.height - side) / 2;
+      const c = document.createElement('canvas');
+      c.width = size;
+      c.height = size;
+      c.getContext('2d').drawImage(img, sx, sy, side, side, 0, 0, size, size);
+      URL.revokeObjectURL(url);
+      c.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not read the image'))), 'image/jpeg', 0.85);
+    };
+    img.onerror = () => reject(new Error('Could not read the image'));
+    img.src = url;
+  });
+}
+
+// Change the cover picture of one song
+function changeCover(s) {
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'image/*';
+  inp.onchange = async () => {
+    const file = inp.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast('Please choose an image'); return; }
+    try {
+      toast('Uploading cover...');
+      const blob = await resizeImage(file, 800);
+      const path = uid + '/cover-' + Date.now() + '.jpg';
+      const up = await db.storage.from('covers').upload(path, blob, { contentType: 'image/jpeg' });
+      if (up.error) throw up.error;
+      const url = db.storage.from('covers').getPublicUrl(path).data.publicUrl;
+      const res = await db.from('songs').update({ cover_url: url }).eq('id', s.id).select();
+      if (res.error) throw res.error;
+      if (!res.data || !res.data.length) throw new Error('Not allowed. Run the Supabase update step first.');
+      toast('Cover saved');
+      init();
+    } catch (err) {
+      toast('Could not save: ' + (err.message || 'try again'));
+    }
+  };
+  inp.click();
 }
 
 // ===== Artist profile photo =====
@@ -109,27 +160,6 @@ async function showPhoto() {
     pic.style.background = "url('" + res.data.photo_url + "') center/cover";
     pic.textContent = '';
   }
-}
-
-// Crop to a square and shrink, so the photo loads fast
-function resizeImage(file, size) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      const side = Math.min(img.width, img.height);
-      const sx = (img.width - side) / 2;
-      const sy = (img.height - side) / 2;
-      const c = document.createElement('canvas');
-      c.width = size;
-      c.height = size;
-      c.getContext('2d').drawImage(img, sx, sy, side, side, 0, 0, size, size);
-      URL.revokeObjectURL(url);
-      c.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not read the image'))), 'image/jpeg', 0.85);
-    };
-    img.onerror = () => reject(new Error('Could not read the image'));
-    img.src = url;
-  });
 }
 
 async function uploadPhoto(file) {

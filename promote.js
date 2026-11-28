@@ -1,5 +1,6 @@
 const $ = (id) => document.getElementById(id);
-let parsed = null;   // the link, once it checks out
+let parsed = null;     // the link, once it checks out
+let coverBlob = null;  // the cover picture, if one was chosen
 
 // Must be logged in
 if (db) {
@@ -10,14 +11,12 @@ if (db) {
 
 function showError(msg) { $('error').textContent = msg; }
 
-// "only-one" becomes "Only One"
 function pretty(text) {
   let t = text;
   try { t = decodeURIComponent(text); } catch (e) {}
   return t.replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-// Check the link and build the clean link and the player link
 function parseLink(raw) {
   let u;
   try { u = new URL(raw.trim()); } catch (e) { return null; }
@@ -34,7 +33,6 @@ function parseLink(raw) {
   };
 }
 
-// When a link is pasted: preview the player and fill in title and artist
 $('link').addEventListener('input', (e) => {
   const raw = e.target.value;
   parsed = parseLink(raw);
@@ -49,6 +47,45 @@ $('link').addEventListener('input', (e) => {
   }
 });
 
+// ===== Cover picture =====
+function resizeImage(file, size) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const side = Math.min(img.width, img.height);
+      const sx = (img.width - side) / 2;
+      const sy = (img.height - side) / 2;
+      const c = document.createElement('canvas');
+      c.width = size;
+      c.height = size;
+      c.getContext('2d').drawImage(img, sx, sy, side, side, 0, 0, size, size);
+      URL.revokeObjectURL(url);
+      c.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not read the image'))), 'image/jpeg', 0.85);
+    };
+    img.onerror = () => reject(new Error('Could not read the image'));
+    img.src = url;
+  });
+}
+
+$('coverDrop').addEventListener('click', () => $('coverInput').click());
+$('coverInput').addEventListener('change', async () => {
+  const file = $('coverInput').files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { showError('Please choose an image for the cover.'); return; }
+  try {
+    coverBlob = await resizeImage(file, 800);
+    $('coverPreview').src = URL.createObjectURL(coverBlob);
+    $('coverPreview').classList.add('show');
+    $('coverText').innerHTML = '<strong>Cover added</strong><small>Tap to change</small>';
+    $('coverDrop').classList.add('filled');
+    showError('');
+  } catch (e) {
+    showError('Could not read that image.');
+  }
+});
+
+// ===== Promote =====
 $('submitBtn').addEventListener('click', async () => {
   const title = $('title').value.trim();
   const artist = $('artist').value.trim();
@@ -64,10 +101,22 @@ $('submitBtn').addEventListener('click', async () => {
   $('submitBtn').textContent = 'Promoting...';
 
   try {
-    // Do not add the same song twice
+    const sess = await db.auth.getSession();
+    if (!sess.data.session) { location.href = 'login.html?next=promote.html'; return; }
+    const uid = sess.data.session.user.id;
+
     const dup = await db.from('songs').select('id').eq('source_url', parsed.clean).limit(1);
     if (dup.error) throw dup.error;
     if (dup.data.length) throw new Error('This song is already being promoted.');
+
+    // Upload the cover first, if there is one
+    let coverUrl = null;
+    if (coverBlob) {
+      const path = uid + '/cover-' + Date.now() + '.jpg';
+      const up = await db.storage.from('covers').upload(path, coverBlob, { contentType: 'image/jpeg' });
+      if (up.error) throw up.error;
+      coverUrl = db.storage.from('covers').getPublicUrl(path).data.publicUrl;
+    }
 
     const colors = ['#1ed760', '#ff7a18', '#a855f7', '#3b82f6', '#ec4899', '#eab308'];
     const ins = await db.from('songs').insert({
@@ -75,6 +124,7 @@ $('submitBtn').addEventListener('click', async () => {
       artist: artist,
       genre: genre,
       source_url: parsed.clean,
+      cover_url: coverUrl,
       color: colors[Math.floor(Math.random() * colors.length)]
     });
     if (ins.error) throw ins.error;
@@ -94,5 +144,10 @@ $('againBtn').addEventListener('click', () => {
   $('title').value = '';
   $('artist').value = '';
   $('preview').innerHTML = '';
+  $('coverPreview').classList.remove('show');
+  $('coverText').innerHTML = '<span class="drop-icon">&#128444;</span><strong>Add cover art (optional)</strong><small>Save the cover from Audiomack, then choose it here</small>';
+  $('coverDrop').classList.remove('filled');
+  $('coverInput').value = '';
+  coverBlob = null;
   parsed = null;
 });

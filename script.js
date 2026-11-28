@@ -255,12 +255,17 @@ function countPlay(s) {
   }
   refreshPlays();
 }
-function refreshPlays() {
-  document.querySelectorAll('.plays').forEach((el) => {
-    const s = songs.find((x) => String(x.id) === el.dataset.id);
-    if (s) el.textContent = formatPlays(s.plays);
-  });
-  if (currentIndex !== -1) $('fpPlays').textContent = formatPlays(songs[currentIndex].plays);
+function countPlay(s) {
+  // Count each song only once per phone or browser
+  const done = load('countedSongs', []);
+  if (done.includes(s.id)) return;
+  done.push(s.id);
+  save('countedSongs', done);
+  s.plays += 1;
+  if (typeof db !== 'undefined' && db && s.fromDb) {
+    db.rpc('increment_plays', { song_id: s.id }).then(() => {}, () => {});
+  }
+  refreshPlays();
 }
 
 // ===== Player: choose a song =====
