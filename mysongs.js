@@ -1,5 +1,6 @@
 const $ = (id) => document.getElementById(id);
 let toastTimer = null;
+let uid = '';
 
 function esc(t) {
   return String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -22,9 +23,9 @@ async function init() {
   const sess = await db.auth.getSession();
   if (!sess.data.session) { location.href = 'login.html?next=mysongs.html'; return; }
   const user = sess.data.session.user;
+  uid = user.id;
   $('who').textContent = 'Signed in as ' + user.email;
 
-  // Only this user's songs
   const res = await db.from('songs').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
   if (res.error) { $('msg').textContent = 'Could not load songs: ' + res.error.message; return; }
   render(res.data);
@@ -36,6 +37,8 @@ function render(list) {
   $('statSongs').textContent = list.length;
   $('statPlays').textContent = formatPlays(total);
   $('statTop').textContent = top ? top.title : '-';
+
+  photoEditor(list);
 
   const box = $('myList');
   box.innerHTML = '';
@@ -62,6 +65,96 @@ function render(list) {
   });
 }
 
+// ===== Artist profile photo =====
+function photoEditor(list) {
+  const names = [];
+  list.forEach((s) => {
+    const n = (s.artist || '').trim();
+    if (n && !names.some((x) => x.toLowerCase() === n.toLowerCase())) names.push(n);
+  });
+  if (!names.length) return;
+
+  let box = $('photoBox');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'photoBox';
+    box.className = 'photo-box';
+    $('myList').parentNode.insertBefore(box, $('myList'));
+  }
+  box.innerHTML =
+    '<h3>Artist profile photo</h3>' +
+    '<div class="photo-row"><div class="photo-pic" id="photoPic"></div>' +
+    '<div class="photo-side"><select id="photoArtist">' +
+    names.map((n) => '<option value="' + esc(n) + '">' + esc(n) + '</option>').join('') +
+    '</select><button class="btn btn-ghost" id="photoBtn">Choose photo</button></div></div>' +
+    '<input type="file" id="photoInput" accept="image/*" hidden>';
+
+  $('photoArtist').addEventListener('change', showPhoto);
+  $('photoBtn').addEventListener('click', () => $('photoInput').click());
+  $('photoInput').addEventListener('change', () => {
+    if ($('photoInput').files[0]) uploadPhoto($('photoInput').files[0]);
+  });
+  showPhoto();
+}
+
+function keyOf(name) { return name.trim().toLowerCase(); }
+
+async function showPhoto() {
+  const name = $('photoArtist').value;
+  const pic = $('photoPic');
+  pic.style.background = '';
+  pic.textContent = name.charAt(0).toUpperCase();
+  const res = await db.from('artist_photos').select('photo_url').eq('artist_key', keyOf(name)).maybeSingle();
+  if (res.data && res.data.photo_url) {
+    pic.style.background = "url('" + res.data.photo_url + "') center/cover";
+    pic.textContent = '';
+  }
+}
+
+// Crop to a square and shrink, so the photo loads fast
+function resizeImage(file, size) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const side = Math.min(img.width, img.height);
+      const sx = (img.width - side) / 2;
+      const sy = (img.height - side) / 2;
+      const c = document.createElement('canvas');
+      c.width = size;
+      c.height = size;
+      c.getContext('2d').drawImage(img, sx, sy, side, side, 0, 0, size, size);
+      URL.revokeObjectURL(url);
+      c.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not read the image'))), 'image/jpeg', 0.85);
+    };
+    img.onerror = () => reject(new Error('Could not read the image'));
+    img.src = url;
+  });
+}
+
+async function uploadPhoto(file) {
+  if (!file.type.startsWith('image/')) { toast('Please choose an image'); return; }
+  const name = $('photoArtist').value;
+  $('photoBtn').disabled = true;
+  $('photoBtn').textContent = 'Uploading...';
+  try {
+    const blob = await resizeImage(file, 400);
+    const path = uid + '/avatar-' + Date.now() + '.jpg';
+    const up = await db.storage.from('covers').upload(path, blob, { contentType: 'image/jpeg' });
+    if (up.error) throw up.error;
+    const url = db.storage.from('covers').getPublicUrl(path).data.publicUrl;
+    const sv = await db.from('artist_photos').upsert({ artist_key: keyOf(name), photo_url: url });
+    if (sv.error) throw sv.error;
+    toast('Photo saved');
+    showPhoto();
+  } catch (err) {
+    toast('Could not save: ' + (err.message || 'try again'));
+  }
+  $('photoBtn').disabled = false;
+  $('photoBtn').textContent = 'Choose photo';
+  $('photoInput').value = '';
+}
+
 function copyLink(id) {
   const url = songLink(id);
   if (navigator.clipboard && window.isSecureContext) {
@@ -77,7 +170,7 @@ async function deleteSong(s, row) {
   if (res.error) { toast('Could not delete'); return; }
   row.remove();
   toast('Song deleted');
-  init(); // refresh the numbers
+  init();
 }
 
 init();

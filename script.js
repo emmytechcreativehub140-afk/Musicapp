@@ -187,23 +187,34 @@ function renderFeatured() {
   list.forEach((x, n) => row.appendChild(buildCard(x.s, x.i, n, true)));
 }
 
-function renderArtists() {
+async function renderArtists() {
   const row = $('artistRow');
   row.innerHTML = '';
   const names = [];
   songs.forEach((s) => { if (!names.includes(s.artist)) names.push(s.artist); });
+
+  // Profile photos that artists added
+  const photos = {};
+  if (typeof db !== 'undefined' && db) {
+    try {
+      const res = await db.from('artist_photos').select('artist_key, photo_url');
+      if (!res.error) res.data.forEach((r) => { photos[r.artist_key] = r.photo_url; });
+    } catch (e) {}
+  }
+
   names.slice(0, 10).forEach((name, i) => {
+    const photo = photos[name.trim().toLowerCase()];
+    const bg = photo ? "url('" + esc(photo) + "') center/cover" : artistColors[i % artistColors.length];
     const el = document.createElement('div');
     el.className = 'artist';
     el.style.animationDelay = (i * 0.1) + 's';
     el.innerHTML =
-      '<div class="artist-pic" style="background:' + artistColors[i % artistColors.length] + '">' +
-      esc(name.charAt(0).toUpperCase()) + '</div><span>' + esc(name) + '</span>';
+      '<div class="artist-pic" style="background:' + bg + '">' +
+      (photo ? '' : esc(name.charAt(0).toUpperCase())) + '</div><span>' + esc(name) + '</span>';
     el.addEventListener('click', () => { location.href = 'artist.html?name=' + encodeURIComponent(name); });
     row.appendChild(el);
   });
 }
-
 function renderReleases() {
   const list = $('releaseList');
   list.innerHTML = '';

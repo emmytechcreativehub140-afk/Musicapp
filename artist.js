@@ -14,14 +14,26 @@ function toast(msg) {
   toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
 }
 
+// Show the artist's profile photo if they added one
+async function loadPhoto() {
+  try {
+    const res = await db.from('artist_photos').select('photo_url').eq('artist_key', name.trim().toLowerCase()).maybeSingle();
+    if (res.data && res.data.photo_url) {
+      $('avatar').style.background = "url('" + res.data.photo_url + "') center/cover";
+      $('avatar').textContent = '';
+    }
+  } catch (e) {}
+}
+
 async function init() {
   if (!name) { $('msg').textContent = 'No artist chosen.'; return; }
   $('artistName').textContent = name;
   $('avatar').textContent = name.charAt(0).toUpperCase();
-  document.title = name + ' - MusicApp';
+  document.title = name + ' - SoundBoost';
   if (!db) { $('msg').textContent = 'Add your Supabase keys in config.js first.'; return; }
 
-  // ilike = not case sensitive, so "dj kayo" and "Dj Kayo" match
+  loadPhoto();
+
   const res = await db.from('songs').select('*').ilike('artist', name).order('plays', { ascending: false });
   if (res.error) { $('msg').textContent = 'Could not load songs: ' + res.error.message; return; }
   render(res.data);
@@ -49,7 +61,6 @@ function render(list) {
       '<div class="song-artist">' + (s.genre ? esc(s.genre) : 'Song') + '</div>' +
       '<div class="my-plays">' + (s.plays || 0).toLocaleString() + ' plays</div></div>' +
       '<div class="my-actions"><button class="mini-btn">&#9658; Play</button></div>';
-    // Opens the home page with this song loaded in the full player
     row.addEventListener('click', () => { location.href = 'index.html?song=' + s.id; });
     box.appendChild(row);
   });
@@ -58,7 +69,7 @@ function render(list) {
 $('shareProfile').addEventListener('click', async () => {
   const url = location.href;
   if (navigator.share) {
-    try { await navigator.share({ title: name + ' on MusicApp', url: url }); } catch (e) {}
+    try { await navigator.share({ title: name + ' on SoundBoost', url: url }); } catch (e) {}
     return;
   }
   if (navigator.clipboard && window.isSecureContext) {
