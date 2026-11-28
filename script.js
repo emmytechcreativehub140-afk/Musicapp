@@ -52,9 +52,15 @@ function toast(msg) {
 }
 function coverBg(s) { return s.cover ? "url('" + s.cover + "') center/cover" : s.color; }
 function coverIcon(s) { return s.cover ? '' : '&#9835;'; }
+function copyText(text, msg) {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(() => toast(msg)).catch(() => window.prompt('Copy this', text));
+  } else {
+    window.prompt('Copy this', text);
+  }
+}
 
 // ===== Promoted songs (Audiomack links) =====
-// Turns a saved Audiomack link into the player link
 function embedSrc(s) {
   const m = (s.source || '').match(/audiomack\.com\/([\w.~%-]+)\/song\/([\w.~%-]+)/);
   return m ? 'https://audiomack.com/embed/song/' + m[1] + '/' + m[2] : '';
@@ -81,6 +87,30 @@ promoBtn.id = 'promoteBtn';
 promoBtn.textContent = 'Promote';
 $('uploadBtn').parentNode.insertBefore(promoBtn, $('uploadBtn'));
 
+// ===== Share sheet (made by code) =====
+const sheet = document.createElement('div');
+sheet.className = 'sheet';
+sheet.innerHTML =
+  '<div class="sheet-panel">' +
+  '<button class="sheet-close" id="shClose">&#10005;</button>' +
+  '<h3>Promote this song</h3>' +
+  '<div class="sh-card"><div class="sh-cover" id="shCover"></div>' +
+  '<div><strong id="shTitle"></strong><small id="shArtist"></small><em>Listen now on MusicApp</em></div></div>' +
+  '<label class="sh-label">Caption (you can edit it)</label>' +
+  '<textarea id="shCaption" rows="3"></textarea>' +
+  '<div class="sh-link"><input id="shLink" readonly><button class="sh-small" id="shCopyLink">Copy link</button></div>' +
+  '<div class="sh-grid">' +
+  '<button class="sh-btn wa" id="shWa">WhatsApp</button>' +
+  '<button class="sh-btn fb" id="shFb">Facebook</button>' +
+  '<button class="sh-btn x" id="shX">X</button>' +
+  '<button class="sh-btn tg" id="shTg">Telegram</button>' +
+  '<button class="sh-btn" id="shCap">Copy caption</button>' +
+  '<button class="sh-btn" id="shMore">More...</button>' +
+  '</div>' +
+  '<p class="sh-tip">Instagram and TikTok: copy the caption, then paste it in your story, post or bio.</p>' +
+  '</div>';
+document.body.appendChild(sheet);
+
 // ===== Load songs from Supabase =====
 async function loadSongs() {
   if (typeof db !== 'undefined' && db) {
@@ -96,6 +126,7 @@ async function loadSongs() {
         url: r.audio_url || '',
         source: r.source_url || '',
         cover: r.cover_url || '',
+        featured: !!r.featured,
         fromDb: true
       }));
     } catch (e) { console.log('Could not load songs', e); }
@@ -112,26 +143,48 @@ async function refreshAuth() {
 }
 
 // ===== Build the page =====
+function buildCard(s, i, delay, featured) {
+  const card = document.createElement('div');
+  card.className = 'song-card';
+  card.style.animationDelay = Math.min(delay, 8) * 0.1 + 's';
+  card.innerHTML =
+    (featured ? '<span class="badge">Featured</span>' : '') +
+    '<div class="cover" style="background:' + coverBg(s) + '">' + coverIcon(s) + '</div>' +
+    '<div class="song-title">' + esc(s.title) + '</div>' +
+    '<div class="song-artist">' + esc(s.artist) + '</div>' +
+    '<div class="song-meta"><span class="plays" data-id="' + s.id + '">' + formatPlays(s.plays) + '</span>' +
+    '<button class="like-btn" data-id="' + s.id + '">&#9825;</button></div>';
+  card.addEventListener('click', () => playSong(i));
+  card.querySelector('.like-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleLike(s.id);
+  });
+  return card;
+}
+
 function renderTrending() {
   const row = $('trendingRow');
   row.innerHTML = '';
-  songs.forEach((s, i) => {
-    const card = document.createElement('div');
-    card.className = 'song-card';
-    card.style.animationDelay = Math.min(i, 8) * 0.1 + 's';
-    card.innerHTML =
-      '<div class="cover" style="background:' + coverBg(s) + '">' + coverIcon(s) + '</div>' +
-      '<div class="song-title">' + esc(s.title) + '</div>' +
-      '<div class="song-artist">' + esc(s.artist) + '</div>' +
-      '<div class="song-meta"><span class="plays" data-id="' + s.id + '">' + formatPlays(s.plays) + '</span>' +
-      '<button class="like-btn" data-id="' + s.id + '">&#9825;</button></div>';
-    card.addEventListener('click', () => playSong(i));
-    card.querySelector('.like-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleLike(s.id);
-    });
-    row.appendChild(card);
-  });
+  songs.forEach((s, i) => row.appendChild(buildCard(s, i, i, false)));
+}
+
+// Featured section: shows songs that have "featured" ticked in Supabase
+function renderFeatured() {
+  let sec = $('featuredSection');
+  const list = [];
+  songs.forEach((s, i) => { if (s.featured) list.push({ s: s, i: i }); });
+  if (!list.length) { if (sec) sec.remove(); return; }
+  if (!sec) {
+    sec = document.createElement('section');
+    sec.className = 'section';
+    sec.id = 'featuredSection';
+    sec.innerHTML = '<h2>Featured</h2><div class="card-row" id="featuredRow"></div>';
+    const trending = $('trendingRow').closest('section');
+    trending.parentNode.insertBefore(sec, trending);
+  }
+  const row = $('featuredRow');
+  row.innerHTML = '';
+  list.forEach((x, n) => row.appendChild(buildCard(x.s, x.i, n, true)));
 }
 
 function renderArtists() {
@@ -211,7 +264,6 @@ function selectSong(index) {
 
   if (s.url) { audio.src = s.url; } else { audio.removeAttribute('src'); audio.load(); }
 
-  // Promoted song: show the Audiomack player. Other songs: remove it.
   if (embed) {
     fpEmbed.innerHTML = '<iframe src="' + esc(embed) + '" height="252" scrolling="no" frameborder="0" allow="autoplay"></iframe>';
     amBtn.href = s.source;
@@ -252,7 +304,6 @@ function pausePlayback() {
 }
 function playSong(index) {
   selectSong(index);
-  // Promoted songs play inside the Audiomack player, so just open it
   if (isPromo(songs[index])) {
     counted = true;
     countPlay(songs[index]);
@@ -344,7 +395,6 @@ function closeFull() {
 }
 on('openFull', 'click', openFull);
 on('fpClose', 'click', closeFull);
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeFull(); });
 
 // ===== Share =====
 function songLink(s) {
@@ -352,20 +402,41 @@ function songLink(s) {
 }
 function shareText(s) { return 'Listen to "' + s.title + '" by ' + s.artist + ' on MusicApp'; }
 
-async function shareSong() {
+function openSheet() {
   if (currentIndex === -1) return;
   const s = songs[currentIndex];
-  const url = songLink(s);
-  if (navigator.share) {
-    try { await navigator.share({ title: s.title, text: shareText(s), url: url }); } catch (e) {}
-    return;
-  }
-  if (navigator.clipboard && window.isSecureContext) {
-    navigator.clipboard.writeText(url).then(() => toast('Link copied')).catch(() => window.prompt('Copy this link', url));
-  } else {
-    window.prompt('Copy this link', url);
-  }
+  $('shCover').style.background = coverBg(s);
+  $('shCover').innerHTML = coverIcon(s);
+  $('shTitle').textContent = s.title;
+  $('shArtist').textContent = s.artist;
+  $('shCaption').value = '\uD83D\uDD25 Now playing: "' + s.title + '" by ' + s.artist + '. Listen free on MusicApp \uD83C\uDFA7';
+  $('shLink').value = songLink(s);
+  sheet.classList.add('open');
 }
+function closeSheet() { sheet.classList.remove('open'); }
+function captionOnly() { return $('shCaption').value.trim(); }
+function fullText() { return captionOnly() + ' ' + $('shLink').value; }
+
+on('shClose', 'click', closeSheet);
+sheet.addEventListener('click', (e) => { if (e.target === sheet) closeSheet(); });
+on('shCopyLink', 'click', () => copyText($('shLink').value, 'Link copied'));
+on('shCap', 'click', () => copyText(fullText(), 'Caption copied'));
+on('shWa', 'click', () => window.open('https://wa.me/?text=' + encodeURIComponent(fullText()), '_blank'));
+on('shFb', 'click', () => window.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent($('shLink').value), '_blank'));
+on('shX', 'click', () => window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(captionOnly()) + '&url=' + encodeURIComponent($('shLink').value), '_blank'));
+on('shTg', 'click', () => window.open('https://t.me/share/url?url=' + encodeURIComponent($('shLink').value) + '&text=' + encodeURIComponent(captionOnly()), '_blank'));
+on('shMore', 'click', async () => {
+  if (navigator.share) {
+    try { await navigator.share({ title: 'MusicApp', text: captionOnly(), url: $('shLink').value }); } catch (e) {}
+  } else {
+    copyText(fullText(), 'Caption copied');
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { closeSheet(); closeFull(); }
+});
+
 function shareWhatsApp() {
   if (currentIndex === -1) return;
   const s = songs[currentIndex];
@@ -380,7 +451,7 @@ on('fpNext', 'click', nextSong);
 on('prevBtn', 'click', prevSong);
 on('fpPrev', 'click', prevSong);
 on('fpLike', 'click', () => { if (currentIndex !== -1) toggleLike(songs[currentIndex].id); });
-on('shareBtn', 'click', shareSong);
+on('shareBtn', 'click', openSheet);
 on('waBtn', 'click', shareWhatsApp);
 on('shuffleBtn', 'click', () => {
   shuffleOn = !shuffleOn;
@@ -440,6 +511,7 @@ window.addEventListener('load', () => {
 // ===== Start =====
 async function init() {
   await loadSongs();
+  renderFeatured();
   renderTrending();
   renderArtists();
   renderReleases();
