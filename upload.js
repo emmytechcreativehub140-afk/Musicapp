@@ -74,7 +74,7 @@ $('submitBtn').addEventListener('click', async () => {
   const title = $('title').value.trim();
   const artist = $('artist').value.trim();
   const genre = $('genre').value;
-
+      
   if (!title) return showError('Please enter the song title.');
   if (!artist) return showError('Please enter your artist name.');
   if (!audioFile) return showError('Please choose your song file.');
@@ -121,6 +121,7 @@ $('submitBtn').addEventListener('click', async () => {
       title: title,
       artist: artist,
       genre: genre,
+            allow_download: $('allowDl').checked,
       audio_url: audioUrl,
       cover_url: coverUrl,
       color: colors[Math.floor(Math.random() * colors.length)]

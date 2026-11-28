@@ -127,6 +127,7 @@ async function loadSongs() {
         source: r.source_url || '',
         cover: r.cover_url || '',
         featured: !!r.featured,
+                allowDownload: !!r.allow_download,
         fromDb: true
       }));
     } catch (e) { console.log('Could not load songs', e); }
@@ -544,6 +545,39 @@ async function init() {
   }
 }
 init();
+// ===== Download button (uploaded songs only) =====
+const dlBtn = document.createElement('button');
+dlBtn.className = 'act';
+dlBtn.textContent = 'Download';
+dlBtn.style.display = 'none';
+$('shareBtn').parentNode.appendChild(dlBtn);
+
+function updateDownloadBtn() {
+  const s = songs[currentIndex];
+  dlBtn.style.display = (s && s.url && s.allowDownload) ? '' : 'none';
+}
+
+// Show or hide the button every time a song is chosen
+const originalSelectSong = selectSong;
+selectSong = function (index) {
+  originalSelectSong(index);
+  updateDownloadBtn();
+};
+
+dlBtn.addEventListener('click', () => {
+  const s = songs[currentIndex];
+  if (!s || !s.url || !s.allowDownload) return;
+  const ext = (s.url.split('?')[0].match(/\.(\w{2,5})$/) || ['', 'mp3'])[1];
+  const name = (s.artist + ' - ' + s.title + '.' + ext).replace(/[\\/:*?"<>|]/g, '');
+  const a = document.createElement('a');
+  a.href = s.url + (s.url.indexOf('?') > -1 ? '&' : '?') + 'download=' + encodeURIComponent(name);
+  a.download = name;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  toast('Download started');
+});
 // ===== Stage 9: Share as an image =====
 function loadImage(url) {
   return new Promise((resolve) => {
