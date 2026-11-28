@@ -539,3 +539,154 @@ async function init() {
   }
 }
 init();
+// ===== Stage 9: Share as an image =====
+function loadImage(url) {
+  return new Promise((resolve) => {
+    if (!url) return resolve(null);
+    const im = new Image();
+    im.crossOrigin = 'anonymous';
+    im.onload = () => resolve(im);
+    im.onerror = () => resolve(null);
+    im.src = url;
+  });
+}
+function roundRect(g, x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+function wrapLines(g, text, maxW, maxLines) {
+  const words = text.split(' ');
+  let lines = [];
+  let line = '';
+  words.forEach((w) => {
+    const t = line ? line + ' ' + w : w;
+    if (g.measureText(t).width > maxW && line) { lines.push(line); line = w; } else { line = t; }
+  });
+  if (line) lines.push(line);
+  if (lines.length > maxLines) {
+    lines = lines.slice(0, maxLines);
+    let last = lines[maxLines - 1];
+    while (g.measureText(last + '\u2026').width > maxW && last.length) last = last.slice(0, -1);
+    lines[maxLines - 1] = last + '\u2026';
+  }
+  return lines;
+}
+
+// Draws a 1080 x 1920 picture (WhatsApp Status size) for the song
+async function makeCard(s) {
+  const W = 1080, H = 1920;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  const accent = s.color || '#1ed760';
+  const FONT = 'Segoe UI, Roboto, Arial, sans-serif';
+
+  // background and glow
+  g.fillStyle = '#0a0a0a';
+  g.fillRect(0, 0, W, H);
+  const glow = g.createRadialGradient(W / 2, 800, 40, W / 2, 800, 950);
+  glow.addColorStop(0, accent + '99');
+  glow.addColorStop(1, 'rgba(10,10,10,0)');
+  g.fillStyle = glow;
+  g.fillRect(0, 0, W, H);
+
+  // logo bars
+  const bw = 40, gap = 22, hs = [70, 120, 92, 56];
+  let x = (W - (4 * bw + 3 * gap)) / 2;
+  g.fillStyle = '#1ed760';
+  hs.forEach((h) => { roundRect(g, x, 250 - h, bw, h, 20); g.fill(); x += bw + gap; });
+
+  // wordmark
+  g.font = 'bold 96px ' + FONT;
+  g.textBaseline = 'alphabetic';
+  g.textAlign = 'left';
+  const w1 = g.measureText('Sound').width;
+  const w2 = g.measureText('Boost').width;
+  const wx = (W - (w1 + w2)) / 2;
+  g.fillStyle = '#ffffff';
+  g.fillText('Sound', wx, 380);
+  g.fillStyle = '#1ed760';
+  g.fillText('Boost', wx + w1, 380);
+
+  // cover
+  const size = 780, cx = (W - size) / 2, cy = 470;
+  const img = await loadImage(s.cover);
+  g.save();
+  roundRect(g, cx, cy, size, size, 56);
+  g.clip();
+  if (img) {
+    const side = Math.min(img.width, img.height);
+    g.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, cx, cy, size, size);
+  } else {
+    g.fillStyle = accent;
+    g.fillRect(cx, cy, size, size);
+    g.fillStyle = 'rgba(0,0,0,0.3)';
+    g.font = 'bold 340px ' + FONT;
+    g.textAlign = 'center';
+    g.fillText('\u266B', W / 2, cy + size / 2 + 120);
+  }
+  g.restore();
+
+  // title and artist
+  g.textAlign = 'center';
+  g.fillStyle = '#ffffff';
+  g.font = 'bold 80px ' + FONT;
+  const lines = wrapLines(g, s.title, 900, 2);
+  let ty = 1370;
+  lines.forEach((l) => { g.fillText(l, W / 2, ty); ty += 92; });
+  g.fillStyle = '#1ed760';
+  g.font = '600 52px ' + FONT;
+  g.fillText(s.artist, W / 2, ty + 10);
+
+  // call to action
+  roundRect(g, 160, 1640, 760, 110, 55);
+  g.fillStyle = '#1ed760';
+  g.fill();
+  g.fillStyle = '#0a0a0a';
+  g.font = 'bold 46px ' + FONT;
+  g.fillText('Listen free on SoundBoost', W / 2, 1710);
+
+  // website name
+  g.fillStyle = '#9a9a9a';
+  g.font = '34px ' + FONT;
+  g.fillText(location.host + location.pathname.replace(/index\.html$/, '').replace(/\/$/, ''), W / 2, 1815);
+
+  return new Promise((resolve) => c.toBlob(resolve, 'image/png'));
+}
+
+async function shareImage() {
+  if (currentIndex === -1) return;
+  const s = songs[currentIndex];
+  try {
+    toast('Making your image...');
+    const blob = await makeCard(s);
+    const file = new File([blob], 'soundboost-' + s.id + '.png', { type: 'image/png' });
+    const text = fullText();
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], text: text });
+    } else {
+      // Phone cannot share files: save the picture and copy the caption
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = file.name;
+      a.click();
+      copyText(text, 'Image saved. Caption copied');
+    }
+  } catch (e) {
+    if (e && e.name !== 'AbortError') toast('Could not share the image');
+  }
+}
+
+// Add the big green button at the top of the share sheet
+const imgBtn = document.createElement('button');
+imgBtn.className = 'sh-btn wa';
+imgBtn.id = 'shImg';
+imgBtn.textContent = 'Share as image (best for Status)';
+imgBtn.style.gridColumn = '1 / -1';
+document.querySelector('.sh-grid').prepend(imgBtn);
+imgBtn.addEventListener('click', shareImage);
